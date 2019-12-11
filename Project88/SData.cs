@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Newtonsoft.Json;
+using System.IO;
 
 namespace Project88.Message.Producer
 {
@@ -10,7 +11,7 @@ namespace Project88.Message.Producer
             using (StreamReader reader = new StreamReader(streamData))
             {
                 string dataText = reader.ReadToEnd();
-                dynamic data = Json.Decode(dataText);
+                dynamic data = JsonConvert.DeserializeObject<object>(dataText);
             }
         }
     }
