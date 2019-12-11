@@ -44,14 +44,9 @@ namespace Project88
             string victoriousPartyIdentifier = skirmishData.Data.VictoriousPartyIdentifier;
             string skirmishTimestamp = skirmishData.Data.Timestamp;
             string attackingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.AttackingParty);
-            //log.LogInformation(attackingPartySerializedJson);
             string defendingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.DefendingParty);
-            //log.LogInformation(defendingPartySerializedJson);
 
             // Send the serialized JSON data as messages to Azure Event Hub:
-            //IAzureEventHubRepository eventHubRepository = new AzureEventHubRepository(eventHubConnectionString);
-            //eventHubRepository.PublishEventMessage(attackingPartySerializedJson);
-            //eventHubRepository.PublishEventMessage(defendingPartySerializedJson);
             EventHubsConnectionStringBuilder connectionStringBuilder = new EventHubsConnectionStringBuilder(eventHubConnectionString)
             {
                 EntityPath = eventHubEntityPath
