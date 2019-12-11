@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Project88.Message.Producer;
 
 namespace Project88
 {
     public static class Project88MessageProducer
     {
         // NOTE: This event hub connection string is used only for development purposes. In production, this value will be pushed to a configuration JSON file and its value will be written during the CI/CD pipeline.
-        private const string eventHubConnectionString = "Endpoint=sb://project-88-messaging-tier.servicebus.windows.net/;SharedAccessKeyName=manage;SharedAccessKey=+INSTRpAa+CIRSRzTKBhnrMQi6wPbItqSdDk3Vcbol4=;EntityPath=skirmish-parties";
+        private static EventHubClient eventHubClient;
+        private const string eventHubConnectionString = "Endpoint=sb://project-88-messaging-tier.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=T7s4JSiRwnxHSKtIh/FogNMQLwbVocIxSrvqklni090=";
+        private const string eventHubEntityPath = "skirmish-parties";
 
         /// <summary>
         /// This is the main entry point of the serverless Azure Function.
@@ -25,28 +29,47 @@ namespace Project88
         /// <param name="myBlob">This is the BLOB data stream which was created within the skirmishes container.</param>
         /// <param name="name">This is the name of the BLOB file which was created.</param>
         /// <param name="log">This is a logging dependency used to write to the Azure Function monitoring.</param>
-        [FunctionName("Project88MessageProducer")] 
+        [FunctionName("Project88MessageProducer")]
         public static void Run([BlobTrigger("skirmishes/{name}", Connection = "AzureWebJobsStorage")]Stream myBlob, string name, ILogger log)
         {
             log.LogInformation($"C# Blob trigger function Processed blob\n Name:{name} \n Size: {myBlob.Length} Bytes");
+            MainAsync(new DynamicDataModel(myBlob)).GetAwaiter().GetResult();
+            log.LogInformation("Messages have been published to Azure Event Hubs.");
+        }
 
-            // Extract the data as a dynamic object type:
-            DynamicDataModel skirmishData = new DynamicDataModel(myBlob);
-
+        private static async Task MainAsync(DynamicDataModel skirmishData)
+        {
             // Make dictionarys of the skirmish data for each party:
             string skirmishIdentifier = skirmishData.Data.SkirmishIdentifier;
             string victoriousPartyIdentifier = skirmishData.Data.VictoriousPartyIdentifier;
             string skirmishTimestamp = skirmishData.Data.Timestamp;
             string attackingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.AttackingParty);
-            log.LogInformation(attackingPartySerializedJson);
+            //log.LogInformation(attackingPartySerializedJson);
             string defendingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.DefendingParty);
-            log.LogInformation(defendingPartySerializedJson);
+            //log.LogInformation(defendingPartySerializedJson);
 
             // Send the serialized JSON data as messages to Azure Event Hub:
-            IAzureEventHubRepository eventHubRepository = new AzureEventHubRepository(eventHubConnectionString);
-            eventHubRepository.PublishEventMessage(attackingPartySerializedJson);
-            eventHubRepository.PublishEventMessage(defendingPartySerializedJson);
-            log.LogInformation("Messages have been published to Azure Event Hubs.");
+            //IAzureEventHubRepository eventHubRepository = new AzureEventHubRepository(eventHubConnectionString);
+            //eventHubRepository.PublishEventMessage(attackingPartySerializedJson);
+            //eventHubRepository.PublishEventMessage(defendingPartySerializedJson);
+            EventHubsConnectionStringBuilder connectionStringBuilder = new EventHubsConnectionStringBuilder(eventHubConnectionString)
+            {
+                EntityPath = eventHubEntityPath
+            };
+
+            eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            await PublishEventMessage(attackingPartySerializedJson);
+            await PublishEventMessage(defendingPartySerializedJson);
+            await eventHubClient.CloseAsync();
+        }
+
+        /// <summary>
+        /// Publishes a message to Azure Event Hubs using the connection string and topic from the object's constructor.
+        /// </summary>
+        /// <param name="message">The message which will be published to Azure Event Hubs.</param>
+        public static async Task PublishEventMessage(string message)
+        {
+            await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
         }
 
         /// <summary>
@@ -85,7 +108,8 @@ namespace Project88
             skirmishDataDictionary["SkirmishIdentifier"] = skirmishIdentifier;
             skirmishDataDictionary["Timestamp"] = skirmishTimestamp;
             skirmishDataDictionary["Victorious"] = "False";
-            if (string.Equals(skirmishDataDictionary["PartyIdentifier"], victoriousPartyIdentifier)) {
+            if (string.Equals(skirmishDataDictionary["PartyIdentifier"], victoriousPartyIdentifier))
+            {
                 skirmishDataDictionary["Victorious"] = "True";
             }
             return skirmishDataDictionary;
@@ -112,12 +136,29 @@ namespace Project88
                     Int32.TryParse(skirmishPartyDataDictionary[classCountKey], out currentCount);
                     currentCount += 1;
                     skirmishPartyDataDictionary[classCountKey] = currentCount.ToString();
-                } else
+                }
+                else
                 {
                     skirmishPartyDataDictionary[classCountKey] = "1";
                 }
             }
             return skirmishPartyDataDictionary;
+        }
+
+
+        internal class DynamicDataModel
+        {
+            public dynamic Data { get; private set; }
+
+            public DynamicDataModel(Stream streamData)
+            {
+                // Convert the stream data into text and then deserialize it (under the assumption that it is JSON) to a dynamic object:
+                using (StreamReader reader = new StreamReader(streamData))
+                {
+                    string dataText = reader.ReadToEnd();
+                    this.Data = JsonConvert.DeserializeObject<object>(dataText);
+                }
+            }
         }
     }
 }
