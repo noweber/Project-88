@@ -11,8 +11,7 @@ namespace Project88
     public static class Project88MessageProducer
     {
         // NOTE: This event hub connection string is used only for development purposes. In production, this value will be pushed to a configuration JSON file and its value will be written during the CI/CD pipeline.
-        private const string eventHubConnectionString = "Endpoint=sb://project-88-messaging-tier.servicebus.windows.net/;SharedAccessKeyName=message-producer;SharedAccessKey=gctEx27uMb3tCjUgwdORkRgPac4ia6BM2fCpU9QPCNw=";
-        private const string eventHubName = "skirmish-parties";
+        private const string eventHubConnectionString = "Endpoint=sb://project-88-messaging-tier.servicebus.windows.net/;SharedAccessKeyName=manage;SharedAccessKey=+INSTRpAa+CIRSRzTKBhnrMQi6wPbItqSdDk3Vcbol4=;EntityPath=skirmish-parties";
 
         /// <summary>
         /// This is the main entry point of the serverless Azure Function.
@@ -44,9 +43,10 @@ namespace Project88
             log.LogInformation(defendingPartySerializedJson);
 
             // Send the serialized JSON data as messages to Azure Event Hub:
-            IAzureEventHubRepository eventHubRepository = new AzureEventHubRepository(eventHubConnectionString, eventHubName);
+            IAzureEventHubRepository eventHubRepository = new AzureEventHubRepository(eventHubConnectionString);
             eventHubRepository.PublishEventMessage(attackingPartySerializedJson);
             eventHubRepository.PublishEventMessage(defendingPartySerializedJson);
+            log.LogInformation("Messages have been published to Azure Event Hubs.");
         }
 
         /// <summary>

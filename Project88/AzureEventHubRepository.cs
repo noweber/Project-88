@@ -12,14 +12,9 @@ namespace Project88.Message.Producer
         /// </summary>
         /// <param name="eventHubConnectionString">{Event Hubs connection string} which contains the credentials to connect to a specific instance of Event Hubs.</param>
         /// <param name="eventHubName">{Event Hub path/name} which is the messaging topic.</param>
-        public AzureEventHubRepository(string eventHubConnectionString, string eventHubName)
+        public AzureEventHubRepository(string eventHubConnectionString)
         {
-            EventHubsConnectionStringBuilder connectionStringBuilder = new EventHubsConnectionStringBuilder(eventHubConnectionString)
-            {
-                EntityPath = eventHubName,
-            };
-
-            eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            eventHubClient = EventHubClient.CreateFromConnectionString(eventHubConnectionString);
         }
 
         /// <summary>
