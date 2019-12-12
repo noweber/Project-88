@@ -43,8 +43,8 @@ namespace Project88
             string skirmishIdentifier = skirmishData.Data.SkirmishIdentifier;
             string victoriousPartyIdentifier = skirmishData.Data.VictoriousPartyIdentifier;
             string skirmishTimestamp = skirmishData.Data.Timestamp;
-            string attackingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.AttackingParty);
-            string defendingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.DefendingParty);
+            string attackingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.AttackingParty, true);
+            string defendingPartySerializedJson = GetSerializedJsonOfSkirmishPartyData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, skirmishData.Data.DefendingParty, false);
 
             // Send the serialized JSON data as messages to Azure Event Hub:
             EventHubsConnectionStringBuilder connectionStringBuilder = new EventHubsConnectionStringBuilder(eventHubConnectionString)
@@ -83,9 +83,16 @@ namespace Project88
         /// Victorious: whether the identifier party won or lost (a skirmish party message will be created for both the winner and loser)
         /// 'Class' Count: the number of each class (Mage, Warrior, Cleric, Rogue) which was present in the skirmish.
         /// </returns>
-        private static string GetSerializedJsonOfSkirmishPartyData(string skirmishIdentifier, string victoriousPartyIdentifier, string skirmishTimestamp, dynamic PartyData)
+        private static string GetSerializedJsonOfSkirmishPartyData(string skirmishIdentifier, string victoriousPartyIdentifier, string skirmishTimestamp, dynamic PartyData, bool isAttacker)
         {
             Dictionary<string, string> partyDataDictionary = CreateSkirmishPartyDataDictionaryWithMetaData(skirmishIdentifier, victoriousPartyIdentifier, skirmishTimestamp, PartyData);
+            if(isAttacker)
+            {
+                partyDataDictionary["Role"] = "Attacker";
+            } else
+            {
+                partyDataDictionary["Role"] = "Defender";
+            }
             return JsonConvert.SerializeObject(partyDataDictionary);
         }
 
